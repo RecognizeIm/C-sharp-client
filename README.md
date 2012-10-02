@@ -1,7 +1,7 @@
 Recognize.im API
 ===============
 
-Recognize.im is providing API for Image Recognition. Those class is sample connector to the API
+This class provides access to Recognize.im API. 
 
 
 Usage
