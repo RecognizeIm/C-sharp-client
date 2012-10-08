@@ -105,7 +105,7 @@ namespace recognize
             oRequest = oRequest + "</SOAP-ENV:Envelope>";
 
             //Builds the connection to the WebService.
-            HttpWebRequest req = (HttpWebRequest)WebRequest.Create("http://http://clapi.itraff.pl/");
+            HttpWebRequest req = (HttpWebRequest)WebRequest.Create("http://clapi.itraff.pl/");
             req.Headers.Add("SOAPAction", "\"http://clapi.itraff.pl#" + operation + "\"");
             req.ContentType = "text/xml; charset=\"utf-8\"";
             req.Accept = "text/xml";
