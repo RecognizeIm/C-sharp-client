@@ -257,8 +257,9 @@ namespace recognize
         /// Sends image recognition request.
         /// </summary>
         /// <param name="imagePath">Path to the image file.</param>
+        /// <param name="allResults">if true return all results; else only best one</param> 
         /// <returns>Server response</returns>
-        public Dictionary<string, string> recognize(string imagePath)
+        public Dictionary<string, object> recognize(string imagePath, bool allResults) 
         {
             //open image
             FileStream image = File.OpenRead(imagePath);
@@ -267,7 +268,12 @@ namespace recognize
             image.Close();
 
             //create request
-            HttpWebRequest request = (HttpWebRequest)WebRequest.Create("http://recognize.im/recognize/" + this.clientId);
+            string url = "http://recognize.im/recognize/";
+            if (allResults)
+            {
+                url += "allResults/";
+            }
+            HttpWebRequest request = (HttpWebRequest)WebRequest.Create(url + this.clientId);
             request.Method = "POST";
             request.Headers["x-itraff-hash"] = getMD5(this.apiKey, data);
             request.ContentType = "image/jpeg";
@@ -291,10 +297,26 @@ namespace recognize
 
                     //deserialize json response into Dictionary<string, string>
                     var jss = new JavaScriptSerializer();
-                    var dict = jss.Deserialize<Dictionary<string, string>>(responseString);
+                    var dict = jss.Deserialize<Dictionary<string, object>>(responseString);
                     return dict;
                 }
             }
+        }
+
+        /// <summary>
+        /// Sends image recognition request.
+        /// </summary>
+        /// <param name="imagePath">Path to the image file.</param>
+        /// <returns>Server response</returns>
+        public Dictionary<string, string> recognize(string imagePath)
+        {
+            Dictionary<string, string> result = new Dictionary<string, string>();
+            Dictionary<string, object> tmp = recognize(imagePath, false);
+            foreach (KeyValuePair<string, object> pair in tmp)
+            {
+                result[pair.Key] = pair.Value.ToString();
+            }
+            return result;
         }
     }
 }
