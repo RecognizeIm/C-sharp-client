@@ -10,6 +10,8 @@ using System.Web.Script.Serialization;
 
 namespace recognize
 {
+    enum RecognizeMode { single, allResults, multi };
+
     /// <summary>
     /// Class to handle requests to recognize.im API.
     /// </summary>
@@ -19,7 +21,7 @@ namespace recognize
         private string clientId;
         private string apiKey;
         private string clapiKey;
-
+        
         /// <summary>
         /// Constructor
         /// </summary>
@@ -54,7 +56,7 @@ namespace recognize
             Dictionary<string, string> dict = new Dictionary<string, string>();
             foreach (var result in results)
             {
-                if(result.Element("key").Value != "data") dict[result.Element("key").Value] = result.Element("value").Value;
+                if (!result.Element("value").HasElements) dict[result.Element("key").Value] = result.Element("value").Value;
             }
             return dict;
         }
@@ -93,10 +95,10 @@ namespace recognize
         /// <param name="body">Body of request</param>
         /// <param name="operation">SOAP opperation</param>
         /// <returns>Response converted to Dictionary<string, string></returns>
-        private Dictionary<string, string> sendSoapRequest(string body, string operation) 
+        private Dictionary<string, string> sendSoapRequest(string body, string operation)
         {
             string oRequest = "";
-            oRequest = "<SOAP-ENV:Envelope xmlns:SOAP-ENV=\"http://schemas.xmlsoap.org/soap/envelope/\" xmlns:ns1=\"http://clapidev.pandora.itraff.pl\" xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" xmlns:xsd=\"http://www.w3.org/2001/XMLSchema\" xmlns:ns2=\"http://xml.apache.org/xml-soap\" xmlns:SOAP-ENC=\"http://schemas.xmlsoap.org/soap/encoding/\" SOAP-ENV:encodingStyle=\"http://schemas.xmlsoap.org/soap/encoding/\">";
+            oRequest = "<SOAP-ENV:Envelope xmlns:SOAP-ENV=\"http://schemas.xmlsoap.org/soap/envelope/\" xmlns:ns1=\"http://clapi.itraff.pl\" xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" xmlns:xsd=\"http://www.w3.org/2001/XMLSchema\" xmlns:ns2=\"http://xml.apache.org/xml-soap\" xmlns:SOAP-ENC=\"http://schemas.xmlsoap.org/soap/encoding/\" SOAP-ENV:encodingStyle=\"http://schemas.xmlsoap.org/soap/encoding/\">";
             oRequest = oRequest + "<SOAP-ENV:Body>";
             oRequest = oRequest + "<ns1:" + operation + ">";
             oRequest = oRequest + body;
@@ -254,12 +256,30 @@ namespace recognize
         }
 
         /// <summary>
+        /// Gets recognition mode
+        /// </summary>
+        /// <returns>Server response</returns>
+        public Dictionary<string, string> modeGet()
+        {
+            return sendSoapRequest("", "modeGet");
+        }
+
+        /// <summary>
+        /// Changes recognition mode
+        /// </summary>
+        /// <returns>Server response</returns>
+        public Dictionary<string, string> modeChange()
+        {
+            return sendSoapRequest("", "modeChange");
+        }
+
+        /// <summary>
         /// Sends image recognition request.
         /// </summary>
         /// <param name="imagePath">Path to the image file.</param>
-        /// <param name="allResults">if true return all results; else only best one</param> 
+        /// <param name="mode">Recognize mode</param> 
         /// <returns>Server response</returns>
-        public Dictionary<string, object> recognize(string imagePath, bool allResults) 
+        public Dictionary<string, object> recognize(string imagePath, RecognizeMode mode)
         {
             //open image
             FileStream image = File.OpenRead(imagePath);
@@ -269,9 +289,14 @@ namespace recognize
 
             //create request
             string url = "http://recognize.im/recognize/";
-            if (allResults)
+            
+            if (mode == RecognizeMode.allResults)
             {
                 url += "allResults/";
+            }
+            else if (mode == RecognizeMode.multi)
+            {
+                url += "multi/";
             }
             HttpWebRequest request = (HttpWebRequest)WebRequest.Create(url + this.clientId);
             request.Method = "POST";
@@ -311,7 +336,7 @@ namespace recognize
         public Dictionary<string, string> recognize(string imagePath)
         {
             Dictionary<string, string> result = new Dictionary<string, string>();
-            Dictionary<string, object> tmp = recognize(imagePath, false);
+            Dictionary<string, object> tmp = recognize(imagePath, RecognizeMode.single);
             foreach (KeyValuePair<string, object> pair in tmp)
             {
                 result[pair.Key] = pair.Value.ToString();
