@@ -7,10 +7,11 @@ using System.Net;
 using System.Xml.Linq;
 using System.Security.Cryptography;
 using System.Web.Script.Serialization;
+using System.Drawing;
 
 namespace recognize
 {
-    enum RecognizeMode { single, allResults, multi };
+    enum RecognizeMode { single, allResults, multi, multiAllInstances };
 
     /// <summary>
     /// Class to handle requests to recognize.im API.
@@ -21,6 +22,19 @@ namespace recognize
         private string clientId;
         private string apiKey;
         private string clapiKey;
+		
+		//These are the limits for query images:
+        //for SingleIR
+        private double SINGLEIR_MAX_FILE_SIZE = 500.0;		//KBytes
+        private int SINGLEIR_MIN_DIMENSION = 100;			//pix
+        private double SINGLEIR_MIN_IMAGE_SURFACE = 0.05;	//Mpix
+        private double SINGLEIR_MAX_IMAGE_SURFACE = 0.31;	//Mpix
+
+        //for MultipleIR
+        private double MULTIPLEIR_MAX_FILE_SIZE = 3500.0;	//KBytes
+        private int MULTIPLEIR_MIN_DIMENSION = 100;		//pix
+        private double MULTIPLEIR_MIN_IMAGE_SURFACE = 0.1;	//Mpix
+        private double MULTIPLEIR_MAX_IMAGE_SURFACE = 5.1;	//Mpix
         
         /// <summary>
         /// Constructor
@@ -283,13 +297,20 @@ namespace recognize
         {
             //open image
             FileStream image = File.OpenRead(imagePath);
+
             byte[] data = new byte[image.Length];
             image.Read(data, 0, data.Length);
+
+            if (!checkImageLimits(image, mode))
+            {
+                throw new Exception("Image Limits exception");
+            }
+
             image.Close();
 
             //create request
             string url = "http://recognize.im/recognize/";
-            
+
             if (mode == RecognizeMode.allResults)
             {
                 url += "allResults/";
@@ -298,6 +319,11 @@ namespace recognize
             {
                 url += "multi/";
             }
+            else if (mode == RecognizeMode.multiAllInstances)
+            {
+                url += "multi/allInstances/";
+            }
+
             HttpWebRequest request = (HttpWebRequest)WebRequest.Create(url + this.clientId);
             request.Method = "POST";
             request.Headers["x-itraff-hash"] = getMD5(this.apiKey, data);
@@ -342,6 +368,44 @@ namespace recognize
                 result[pair.Key] = pair.Value.ToString();
             }
             return result;
+        }
+		
+		 /// <summary>
+        /// Checks the image limits for given recognize mode.
+        /// </summary>
+        /// <param name="imageStream">Image file stream.</param>
+        /// <param name="mode">Recognize mode</param> 
+        /// <returns>Server response</returns>
+        public bool checkImageLimits(FileStream imageStream, RecognizeMode mode)
+        {
+            Image image = Image.FromStream(imageStream);
+            double imageSurface = (double)(image.Height * image.Width) / 1000000.0;
+            double fileSize = imageStream.Length / 1000.0;
+
+            if (mode == RecognizeMode.single || mode == RecognizeMode.allResults)
+            {
+                if (fileSize > SINGLEIR_MAX_FILE_SIZE ||
+                    image.Height < SINGLEIR_MIN_DIMENSION ||
+                    image.Width < SINGLEIR_MIN_DIMENSION ||
+                    imageSurface < SINGLEIR_MIN_IMAGE_SURFACE ||
+                    imageSurface > SINGLEIR_MAX_IMAGE_SURFACE)
+                {
+                    return false;
+                }
+            }
+            else if (mode == RecognizeMode.multi || mode == RecognizeMode.multiAllInstances)
+            {
+                if (fileSize > MULTIPLEIR_MAX_FILE_SIZE ||
+                    image.Height < MULTIPLEIR_MIN_DIMENSION ||
+                    image.Width < MULTIPLEIR_MIN_DIMENSION ||
+                    imageSurface < MULTIPLEIR_MIN_IMAGE_SURFACE ||
+                    imageSurface > MULTIPLEIR_MAX_IMAGE_SURFACE)
+                {
+                    return false;
+                }
+            }
+
+            return true;
         }
     }
 }
