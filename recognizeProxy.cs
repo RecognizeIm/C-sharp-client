@@ -11,7 +11,7 @@ using System.Drawing;
 
 namespace recognize
 {
-    enum RecognizeMode { single, allResults, multi, multiAllInstances };
+    enum RecognizeMode { single, multi };
 
     /// <summary>
     /// Class to handle requests to recognize.im API.
@@ -293,7 +293,7 @@ namespace recognize
         /// <param name="imagePath">Path to the image file.</param>
         /// <param name="mode">Recognize mode</param> 
         /// <returns>Server response</returns>
-        public Dictionary<string, object> recognize(string imagePath, RecognizeMode mode)
+        public Dictionary<string, object> recognize(string imagePath, RecognizeMode mode, bool all)
         {
             //open image
             FileStream image = File.OpenRead(imagePath);
@@ -309,19 +309,16 @@ namespace recognize
             image.Close();
 
             //create request
-            string url = "http://recognize.im/recognize/";
-
-            if (mode == RecognizeMode.allResults)
+            string url = "http://recognize.im/v2/recognize/";
+			if (mode == RecognizeMode.multi)
+				url += "multi/";
+			} else {
+				url += "single/";
+			}
+			
+            if (all)
             {
-                url += "allResults/";
-            }
-            else if (mode == RecognizeMode.multi)
-            {
-                url += "multi/";
-            }
-            else if (mode == RecognizeMode.multiAllInstances)
-            {
-                url += "multi/allInstances/";
+                url += "all/";
             }
 
             HttpWebRequest request = (HttpWebRequest)WebRequest.Create(url + this.clientId);
@@ -362,7 +359,7 @@ namespace recognize
         public Dictionary<string, string> recognize(string imagePath)
         {
             Dictionary<string, string> result = new Dictionary<string, string>();
-            Dictionary<string, object> tmp = recognize(imagePath, RecognizeMode.single);
+            Dictionary<string, object> tmp = recognize(imagePath, RecognizeMode.single, true);
             foreach (KeyValuePair<string, object> pair in tmp)
             {
                 result[pair.Key] = pair.Value.ToString();
@@ -382,7 +379,7 @@ namespace recognize
             double imageSurface = (double)(image.Height * image.Width) / 1000000.0;
             double fileSize = imageStream.Length / 1000.0;
 
-            if (mode == RecognizeMode.single || mode == RecognizeMode.allResults)
+            if (mode == RecognizeMode.single)
             {
                 if (fileSize > SINGLEIR_MAX_FILE_SIZE ||
                     image.Height < SINGLEIR_MIN_DIMENSION ||
@@ -393,7 +390,7 @@ namespace recognize
                     return false;
                 }
             }
-            else if (mode == RecognizeMode.multi || mode == RecognizeMode.multiAllInstances)
+            else if (mode == RecognizeMode.multi)
             {
                 if (fileSize > MULTIPLEIR_MAX_FILE_SIZE ||
                     image.Height < MULTIPLEIR_MIN_DIMENSION ||
