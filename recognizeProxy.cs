@@ -11,7 +11,7 @@ using System.Drawing;
 
 namespace recognize
 {
-    enum RecognizeMode { single, multi };
+    enum RecognitionMode { single, multi };
 
     /// <summary>
     /// Class to handle requests to recognize.im API.
@@ -22,8 +22,8 @@ namespace recognize
         private string clientId;
         private string apiKey;
         private string clapiKey;
-		
-		//These are the limits for query images:
+
+        //These are the limits for query images:
         //for SingleIR
         private double SINGLEIR_MAX_FILE_SIZE = 500.0;		//KBytes
         private int SINGLEIR_MIN_DIMENSION = 100;			//pix
@@ -35,7 +35,7 @@ namespace recognize
         private int MULTIPLEIR_MIN_DIMENSION = 100;		//pix
         private double MULTIPLEIR_MIN_IMAGE_SURFACE = 0.1;	//Mpix
         private double MULTIPLEIR_MAX_IMAGE_SURFACE = 5.1;	//Mpix
-        
+
         /// <summary>
         /// Constructor
         /// </summary>
@@ -282,9 +282,20 @@ namespace recognize
         /// Changes recognition mode
         /// </summary>
         /// <returns>Server response</returns>
-        public Dictionary<string, string> modeChange()
+        public Dictionary<string, string> modeChange(RecognitionMode mode)
         {
-            return sendSoapRequest("", "modeChange");
+            string oRequest = "";
+            if (mode == RecognitionMode.multi)
+            {
+                oRequest = "<mode xsi:type=\"xsd:string\">Multi</mode>";
+            }
+            else
+            {
+                oRequest = "<mode xsi:type=\"xsd:string\">Single</mode>";
+            }
+
+
+            return sendSoapRequest(oRequest, "modeChange");
         }
 
         /// <summary>
@@ -293,7 +304,7 @@ namespace recognize
         /// <param name="imagePath">Path to the image file.</param>
         /// <param name="mode">Recognize mode</param> 
         /// <returns>Server response</returns>
-        public Dictionary<string, object> recognize(string imagePath, RecognizeMode mode, bool all)
+        public Dictionary<string, object> recognize(string imagePath, RecognitionMode mode, bool all)
         {
             //open image
             FileStream image = File.OpenRead(imagePath);
@@ -310,12 +321,15 @@ namespace recognize
 
             //create request
             string url = "http://recognize.im/v2/recognize/";
-			if (mode == RecognizeMode.multi)
-				url += "multi/";
-			} else {
-				url += "single/";
-			}
-			
+            if (mode == RecognitionMode.multi)
+            {
+                url += "multi/";
+            }
+            else
+            {
+                url += "single/";
+            }
+
             if (all)
             {
                 url += "all/";
@@ -359,27 +373,27 @@ namespace recognize
         public Dictionary<string, string> recognize(string imagePath)
         {
             Dictionary<string, string> result = new Dictionary<string, string>();
-            Dictionary<string, object> tmp = recognize(imagePath, RecognizeMode.single, true);
+            Dictionary<string, object> tmp = recognize(imagePath, RecognitionMode.single, true);
             foreach (KeyValuePair<string, object> pair in tmp)
             {
                 result[pair.Key] = pair.Value.ToString();
             }
             return result;
         }
-		
-		 /// <summary>
+
+        /// <summary>
         /// Checks the image limits for given recognize mode.
         /// </summary>
         /// <param name="imageStream">Image file stream.</param>
         /// <param name="mode">Recognize mode</param> 
         /// <returns>Server response</returns>
-        public bool checkImageLimits(FileStream imageStream, RecognizeMode mode)
+        public bool checkImageLimits(FileStream imageStream, RecognitionMode mode)
         {
             Image image = Image.FromStream(imageStream);
             double imageSurface = (double)(image.Height * image.Width) / 1000000.0;
             double fileSize = imageStream.Length / 1000.0;
 
-            if (mode == RecognizeMode.single)
+            if (mode == RecognitionMode.single)
             {
                 if (fileSize > SINGLEIR_MAX_FILE_SIZE ||
                     image.Height < SINGLEIR_MIN_DIMENSION ||
@@ -390,7 +404,7 @@ namespace recognize
                     return false;
                 }
             }
-            else if (mode == RecognizeMode.multi)
+            else if (mode == RecognitionMode.multi)
             {
                 if (fileSize > MULTIPLEIR_MAX_FILE_SIZE ||
                     image.Height < MULTIPLEIR_MIN_DIMENSION ||
