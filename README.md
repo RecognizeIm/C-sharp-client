@@ -24,7 +24,13 @@ Usage
 	Dictionary<string, string> response3 = proxy.indexStatus();
 
 	//recognize image
-	Dictionary<string, string> response4 = proxy.recognize("poznan.jpg");
+	recognize.recognitionResponse response4 = proxy.recognize("poznan.jpg");
+	
+	//draw frames
+	Image image = Image.FromFile("poznan.jpg");
+	Image frames = response4.drawFrames(image);
+	if(frames != null) frames.Save("frames.jpg");
+	
 
 Authorization
 =============

@@ -8,10 +8,63 @@ using System.Xml.Linq;
 using System.Security.Cryptography;
 using System.Web.Script.Serialization;
 using System.Drawing;
+using System.Collections;
 
 namespace recognize
 {
     enum RecognitionMode { single, multi };
+
+    /// <summary>
+    /// Recognition response
+    /// </summary>
+    class recognitionResponse
+    {
+        public int status { get; set; }
+        public string message { get; set; }
+        public List<recognitionObject> objects { get; set; }
+
+        /// <summary>
+        /// Draws frames on image
+        /// </summary>
+        /// <param name="image">Input image</param>
+        /// <returns>Image with frames</returns>
+        public Image drawFrames(Image image)
+        {
+            if (this.status == 0)
+            {
+                Pen blackPen = new Pen(Color.Red, 3);
+                Font drawFont = new Font("Arial", 32);
+                SolidBrush drawBrush = new SolidBrush(Color.Red);
+                using (var graphics = Graphics.FromImage(image))
+                {
+                    foreach (var obj in this.objects)
+                    {
+                        recognitionPoint[] locations = obj.location.ToArray();
+                        graphics.DrawLine(blackPen, locations[0].x, locations[0].y, locations[1].x, locations[1].y);
+                        graphics.DrawLine(blackPen, locations[1].x, locations[1].y, locations[2].x, locations[2].y);
+                        graphics.DrawLine(blackPen, locations[2].x, locations[2].y, locations[3].x, locations[3].y);
+                        graphics.DrawLine(blackPen, locations[3].x, locations[3].y, locations[0].x, locations[0].y);
+                        graphics.DrawString(obj.id, drawFont, drawBrush, locations[0].x, locations[0].y);
+                    }
+                }
+                return image;
+            }
+            return null;
+        }
+    }
+
+    class recognitionObject
+    {
+        public string id { get; set; }
+        public string name { get; set; }
+        public List<recognitionPoint> location { get; set; }
+    }
+
+    class recognitionPoint 
+    {
+        public int x { get; set; }
+        public int y { get; set; }
+    }
 
     /// <summary>
     /// Class to handle requests to recognize.im API.
@@ -304,20 +357,20 @@ namespace recognize
         /// <param name="imagePath">Path to the image file.</param>
         /// <param name="mode">Recognize mode</param> 
         /// <returns>Server response</returns>
-        public Dictionary<string, object> recognize(string imagePath, RecognitionMode mode, bool all)
+        public recognitionResponse recognize(string imagePath, RecognitionMode mode, bool all)
         {
             //open image
-            FileStream image = File.OpenRead(imagePath);
+            FileStream imageStream = File.OpenRead(imagePath);
 
-            byte[] data = new byte[image.Length];
-            image.Read(data, 0, data.Length);
+            byte[] data = new byte[imageStream.Length];
+            imageStream.Read(data, 0, data.Length);
 
-            if (!checkImageLimits(image, mode))
+            if (!checkImageLimits(imageStream, mode))
             {
                 throw new Exception("Image Limits exception");
             }
 
-            image.Close();
+            imageStream.Close();
 
             //create request
             string url = "http://recognize.im/v2/recognize/";
@@ -357,9 +410,9 @@ namespace recognize
                     StreamReader reader = new StreamReader(stream, Encoding.UTF8);
                     String responseString = reader.ReadToEnd();
 
-                    //deserialize json response into Dictionary<string, string>
+                    //deserialize json response into recognitionResponse
                     var jss = new JavaScriptSerializer();
-                    var dict = jss.Deserialize<Dictionary<string, object>>(responseString);
+                    var dict = jss.Deserialize<recognitionResponse>(responseString);
                     return dict;
                 }
             }
@@ -370,15 +423,9 @@ namespace recognize
         /// </summary>
         /// <param name="imagePath">Path to the image file.</param>
         /// <returns>Server response</returns>
-        public Dictionary<string, string> recognize(string imagePath)
+        public recognitionResponse recognize(string imagePath)
         {
-            Dictionary<string, string> result = new Dictionary<string, string>();
-            Dictionary<string, object> tmp = recognize(imagePath, RecognitionMode.single, true);
-            foreach (KeyValuePair<string, object> pair in tmp)
-            {
-                result[pair.Key] = pair.Value.ToString();
-            }
-            return result;
+            return recognize(imagePath, RecognitionMode.single, false);
         }
 
         /// <summary>
